@@ -394,7 +394,7 @@ Note! The code above is for a Winsen MH-Z14A NDIR CO2 Module and needs to be cha
 
 Now we need to use the correct sensor type:
 
-This is the auto-generated code for our CO2 sensor (using the supported type Power):
+This is the auto-generated code for our CO2 sensor (using the supported type Power) located in the file "cc_multilevel_sensor_config.c" that we copied to the root of the project:
 ```
   cc_multilevel_sensor_init_interface(&cc_multilevel_sensor_co2, SENSOR_NAME_POWER);
   cc_multilevel_sensor_add_supported_scale_interface(&cc_multilevel_sensor_co2, SENSOR_SCALE_WATT);
