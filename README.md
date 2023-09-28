@@ -390,6 +390,8 @@ cc_multilevel_sensor_co2_interface_read_value(sensor_read_result_t* o_result, ui
 
 Note! The code above is for a Winsen MH-Z14A NDIR CO2 Module and needs to be changed if you use another CO2-sensor.
 
+## Use correct sensor type for the CO2-sensor
+
 Now we need to use the correct sensor type:
 
 This is the auto-generated code for our CO2 sensor (using the supported type Power):
