@@ -336,14 +336,14 @@ bool get_co2_concentration_reading(int32_t *co2_ppm)
   sl_status_t status;
   size_t bytes_read;
 
-  status = sl_iostream_write(SL_IOSTREAM_STDOUT, getCO2ConcentrationCommand, 9);
+  status = sl_iostream_write(SL_IOSTREAM_STDOUT, getCO2ConcentrationCommand, sizeof(getCO2ConcentrationCommand));
   if (status != SL_STATUS_OK)
     return false;
 
   // Wait 100ms to allow sensor to respond
   vTaskDelay(pdMS_TO_TICKS(100));
 
-  status = sl_iostream_read(SL_IOSTREAM_STDIN, &buffer, 100, &bytes_read);
+  status = sl_iostream_read(SL_IOSTREAM_STDIN, &buffer, sizeof(buffer), &bytes_read);
   if (status != SL_STATUS_OK)
     return false;
 
