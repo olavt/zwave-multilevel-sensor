@@ -410,6 +410,7 @@ This is the auto-generated code for our CO2 sensor (using the supported type Pow
 
   memset(&cc_multilevel_sensor_co2, 0, sizeof(cc_multilevel_sensor_co2));
   cc_multilevel_sensor_co2.sensor_type = &co2_sensorType;
+  cc_multilevel_sensor_add_supported_scale_interface(&cc_multilevel_sensor_co2, 0x00); // 0x00 = "Parts/million (ppm)"
   cc_multilevel_sensor_co2.init = cc_multilevel_sensor_co2_interface_init;
   cc_multilevel_sensor_co2.deinit = cc_multilevel_sensor_co2_interface_deinit;
   cc_multilevel_sensor_co2.read_value = cc_multilevel_sensor_co2_interface_read_value;
