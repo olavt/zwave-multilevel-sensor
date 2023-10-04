@@ -9,10 +9,10 @@ This article is based on Silicon Labs Gecko SDK version 4.3.1
 
 ### What you will need
 
-- A PC running Windows as the development workstation
-- Install Simplicity Studio V5 from Silicon Labs
-- Silicon Labs ZGM230-DK2603A Development Kit
-- CO2 sensor with serial port (UART) connection
+- A PC running Windows as the development workstation.
+- Install Simplicity Studio V5 from Silicon Labs.
+- Silicon Labs ZGM230-DK2603A Development Kit.
+- CO2 sensor with serial port (UART) connection. I'm using a Winsen MH-Z14A.
 
 This article assumes that you have already installed Simplicity Studio V5 and the Gecko SDK 4.3.1
 
