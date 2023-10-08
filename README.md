@@ -321,6 +321,7 @@ Add this code to the file:
 #include "task.h"
 
 #include "sl_iostream.h"
+#include "sl_iostream_uart.h"
 #include "sl_iostream_init_instances.h"
 #include "sl_iostream_handles.h"
 
@@ -329,21 +330,51 @@ Add this code to the file:
 #endif
 
 static char buffer[BUFSIZE];
+static sl_iostream_t* sensor_stream;
 
-bool get_co2_concentration_reading(int32_t *co2_ppm)
+// Automatic Baseline Correction (ABC function)
+// ABC function refers to that sensor itself do zero point judgment and automatic calibration
+// procedure intelligently after a continuous operation period. The automatic calibration cycle is
+// every 24 hours after powered on. The zero point of automatic calibration is 400ppm. From
+// July 2015, the default setting is with built-in automatic calibration function. To use the sensor
+// better, the sensor must be placed in clean air
+bool enable_automatic_baseline_correction(sl_iostream_t* sensor_stream)
+{
+  const char enableABCCommand[] = { 0xFF, 0x01, 0x79, 0xA0, 0x00, 0x00, 0x00, 0x00, 0xE6 };
+  sl_status_t status;
+  size_t bytes_read;
+
+  status = sl_iostream_write(sensor_stream, enableABCCommand, sizeof(enableABCCommand));
+  if (status != SL_STATUS_OK)
+    return false;
+
+  // Wait a bit to allow sensor to respond before reading response
+  vTaskDelay(pdMS_TO_TICKS(200));
+
+  status = sl_iostream_read(sensor_stream, &buffer, sizeof(buffer), &bytes_read);
+  if (status != SL_STATUS_OK)
+    return false;
+
+  if (bytes_read != 9)
+    return false;
+
+  return true;
+}
+
+bool get_co2_concentration_reading(sl_iostream_t* sensor_stream, int32_t *co2_ppm)
 {
   const char getCO2ConcentrationCommand[] = { 0xff, 0x01, 0x86, 0x00, 0x00, 0x00, 0x00, 0x00, 0x79 };
   sl_status_t status;
   size_t bytes_read;
 
-  status = sl_iostream_write(SL_IOSTREAM_STDOUT, getCO2ConcentrationCommand, sizeof(getCO2ConcentrationCommand));
+  status = sl_iostream_write(sensor_stream, getCO2ConcentrationCommand, sizeof(getCO2ConcentrationCommand));
   if (status != SL_STATUS_OK)
     return false;
 
-  // Wait 100ms to allow sensor to respond
-  vTaskDelay(pdMS_TO_TICKS(100));
+  // Wait a bit to allow sensor to respond before reading response
+  vTaskDelay(pdMS_TO_TICKS(200));
 
-  status = sl_iostream_read(SL_IOSTREAM_STDIN, &buffer, sizeof(buffer), &bytes_read);
+  status = sl_iostream_read(sensor_stream, &buffer, sizeof(buffer), &bytes_read);
   if (status != SL_STATUS_OK)
     return false;
 
@@ -355,11 +386,38 @@ bool get_co2_concentration_reading(int32_t *co2_ppm)
   return true;
 }
 
-bool
-cc_multilevel_sensor_co2_interface_read_value(sensor_read_result_t* o_result, uint8_t i_scale)
+void clear_input_buffer(sl_iostream_t* sensor_stream)
+{
+  sl_status_t status;
+  size_t bytes_read;
+
+  do
+  {
+    // Note! This assumes non-blocking read.
+    status = sl_iostream_read(sensor_stream, &buffer, sizeof(buffer), &bytes_read);
+    if (status != SL_STATUS_OK)
+      return;
+
+  } while (bytes_read > 0);
+}
+
+bool cc_multilevel_sensor_co2_interface_init(void)
+{
+  sensor_stream = sl_iostream_get_handle("exp");
+
+  // Use non-blocking reads
+  sl_iostream_uart_set_read_block((sl_iostream_uart_t*)sensor_stream, false);
+
+  clear_input_buffer(sensor_stream);
+
+  enable_automatic_baseline_correction(sensor_stream);
+
+  return true;
+}
+
+bool cc_multilevel_sensor_co2_interface_read_value(sensor_read_result_t* o_result, uint8_t i_scale)
 {
   int32_t co2_ppm;
-
   UNUSED(i_scale);
 
   if(o_result != NULL)
@@ -368,7 +426,7 @@ cc_multilevel_sensor_co2_interface_read_value(sensor_read_result_t* o_result, ui
       o_result->precision  = 0;
       o_result->size_bytes = SENSOR_READ_RESULT_SIZE_4;
 
-      bool result = get_co2_concentration_reading(&co2_ppm);
+      bool result = get_co2_concentration_reading(sensor_stream, &co2_ppm);
       if (!result)
         return false;
 
@@ -385,6 +443,7 @@ cc_multilevel_sensor_co2_interface_read_value(sensor_read_result_t* o_result, ui
 
   return true;
 }
+
 
 ```
 
