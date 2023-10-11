@@ -5,7 +5,7 @@
 
 This article shows how to extend the "Z-Wave - SoC Multilevel Sensor" example project with functional configuration parameters and how to add a CO2 sensor connected to the UART terminals of the ZGM230-DK2603A development board.
 
-This article is based on Silicon Labs Gecko SDK version 4.3.1
+This article is based on Silicon Labs Gecko SDK version 4.3.2
 
 ### What you will need
 
@@ -14,7 +14,7 @@ This article is based on Silicon Labs Gecko SDK version 4.3.1
 - Silicon Labs ZGM230-DK2603A Development Kit.
 - CO2 sensor with serial port (UART) connection. I'm using a Winsen MH-Z14A.
 
-This article assumes that you have already installed Simplicity Studio V5 and the Gecko SDK 4.3.1
+This article assumes that you have already installed Simplicity Studio V5 and the Gecko SDK 4.3.2
 
 ![Z-Wave Hardware](./images/sensor_hardware.jpg)
 
@@ -167,7 +167,7 @@ Now we can add some code to use the configuration parameters at the approperiate
 
 First modify the code to use the "Sensor report interval" configuration parameter.
 
-Open the file "gecko_sdk_4.3.1/protocol/z-wave/ZAF/CommandClasses/MultilevelSensor/src/CC_MultilevelSensor_Support.c"
+Open the file "gecko_sdk_4.3.2/protocol/z-wave/ZAF/CommandClasses/MultilevelSensor/src/CC_MultilevelSensor_Support.c"
 
 It's a bit unfortunate that the one have to modify the SDK-supplied code for this. Ideally there should have been some extensibility points allow for this code to run without changing the SDK source code.
 
@@ -189,7 +189,6 @@ with:
 
 ```
   uint32_t report_interval_ms = get_sensor_report_interval_ms();
-
   AppTimerDeepSleepPersistentStart(&cc_multilevel_sensor_autoreport_timer, report_interval_ms);
 ```
 
@@ -205,13 +204,18 @@ with:
 
 ```
   uint32_t report_interval_ms = get_sensor_report_interval_ms();
-
   AppTimerDeepSleepPersistentStart(&cc_multilevel_sensor_autoreport_timer, report_interval_ms);
 ```
 
 Now add code to use the other configuration parameters:
 
-Open the file "gecko_sdk_4.3.1/protocol/z-wave/platform/SiliconLabs/AppsHw/src/MultilevelSensor/MultilevelSensor_interface_sensor.c"
+Open the file "gecko_sdk_4.3.2/protocol/z-wave/platform/SiliconLabs/AppsHw/src/MultilevelSensor/MultilevelSensor_interface_sensor.c"
+
+Add the following line to the includes file section:
+
+```
+#include "configuration_parameters.h"
+```
 
 Locate the function "cc_multilevel_sensor_air_temperature_interface_read_value".
 
@@ -238,8 +242,8 @@ Move this line of code located inside the if-statement just above the if-stateme
 Then add the following lines of code just after the statement you just moved:
 
 ```
-    minimum_temperature_limit = get_minimum_temperature_limit();
-    maximum_temperature_limit = get_maximum_temperature_limit();
+    int32_t minimum_temperature_limit = get_minimum_temperature_limit();
+    int32_t maximum_temperature_limit = get_maximum_temperature_limit();
 
     if ((temperature_celsius_divided < minimum_temperature_limit) || (temperature_celsius_divided > maximum_temperature_limit))
       return false; // Discard reading
@@ -249,7 +253,7 @@ We are now using all the configuration parameters. You can build the code, deplo
 
 ## Add support for a CO2 sensor using UART (serial communication)
 
-To be able to connect the CO2 sensor to the Z-Wave 800 ZGM230-DK2603A board I soldered two 10-pin headers to the EXP headers on the board.
+To be able to connect the CO2 sensor to the Z-Wave 800 ZGM230-DK2603A board, I soldered two 10-pin headers to the EXP headers on the board.
 
 Connect TX from the CO2 sensor to RX on the ZGM230-DK2603A board and RX to TX. My CO2 sensor use 5V, so I connect those together and GND. It then looks like the photo on top of this article.
 
@@ -453,7 +457,15 @@ Note! The code above is for a Winsen MH-Z14A NDIR CO2 Module and needs to be cha
 
 Now we need to use the correct sensor type:
 
-This is the auto-generated code for our CO2 sensor (using the supported type Power) located in the file "cc_multilevel_sensor_config.c" that we copied to the root of the project:
+Open the file "cc_multilevel_sensor_config.c" that we copied to the root of the project:
+
+Add the following line to the includes file section:
+
+```
+#include <string.h>
+```
+
+This is the auto-generated code for our CO2 sensor (using the supported type Power):
 ```
   cc_multilevel_sensor_init_interface(&cc_multilevel_sensor_co2, SENSOR_NAME_POWER);
   cc_multilevel_sensor_add_supported_scale_interface(&cc_multilevel_sensor_co2, SENSOR_SCALE_WATT);
