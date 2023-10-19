@@ -490,6 +490,179 @@ This is the auto-generated code for our CO2 sensor (using the supported type Pow
 
   You should now be able to build the project, deploy to your hardware and test!
 
+  ## Optional: Convert from Z-Wave Role Type Listening Reporting to Always On
+
+If you want the device to be an always on device capable of participating in message routing, you can convert it to "Z-Wave Role Type Always On".
+
+Open the file "zwave_soc_multilevel_sensor.slcp" in the root of the project.
+
+Click on "SOFTWARE COMPONENTS"
+
+![SOFTWARE COMPONENTS](./images/software_components.png)
+
+Search for "role type" and select "Z-Wave Role Type Always On" and click "Install".
+
+![Replace role type](./images/replace_role_type.png)
+
+Click on "Replace Z-Wave Role Type Listening Reporting with Z-Wave Role Type Always On" and click "OK".
+
+Change the search filter in "SOFTWARE COMPONENTS" to "Battery".
+
+Select the "Battery Command Class - NVM" and click Uninstall.
+
+Select the "Battery Command Class" and click Uninstall.
+
+Change the search filter in "SOFTWARE COMPONENTS" to "Wakeup".
+
+Select the "Wakeup Command Class" and click Uninstall.
+
+If you build the code now, you will get some errors.
+
+To fix this, we need to remove / change some code related to the Listening Reporting role type:
+
+Open the file "app.c" located in the root of the project.
+
+Remove this refence to the include file:
+
+```
+#include "CC_Battery.h"
+```
+
+Locate these lines of code:
+
+```
+ApplicationTask(SApplicationHandles* pAppHandles)
+{
+  EResetReason_t resetReason;
+```
+
+Add the following code under:
+
+```
+  UNUSED(resetReason);
+```
+
+Locate and remove these lines of code:
+
+```
+  /* Re-load and process Deep Sleep persistent application timers.
+   * NB: Before calling AppTimerDeepSleepPersistentLoadAll here all
+   *     application timers must have been been registered with
+   *     AppTimerRegister() or AppTimerDeepSleepPersistentRegister().
+   *     Essentially it means that all CC handlers must be
+   *     initialized first.
+   */
+  AppTimerDeepSleepPersistentLoadAll(resetReason);
+
+  if (ERESETREASON_DEEP_SLEEP_EXT_INT == resetReason)
+  {
+    app_hw_deep_sleep_wakeup_handler();
+  }
+```
+
+Locate these lines of code:
+
+```
+  if(ERESETREASON_DEEP_SLEEP_EXT_INT != resetReason)
+  {
+    /* Enter SmartStart*/
+    /* Protocol will commence SmartStart only if the node is NOT already included in the network */
+    ZAF_setNetworkLearnMode(E_NETWORK_LEARN_MODE_INCLUSION_SMARTSTART);
+  }
+```
+
+and replace with:
+
+```
+  /* Enter SmartStart*/
+  /* Protocol will commence SmartStart only if the node is NOT already included in the network */
+  ZAF_setNetworkLearnMode(E_NETWORK_LEARN_MODE_INCLUSION_SMARTSTART);
+```
+
+Locate and remove this line of code:
+
+```
+      (void) CC_Battery_LevelReport_tx(NULL,ENDPOINT_ROOT, NULL);
+```
+
+Locate this line of code and remove it:
+```
+  AppTimerDeepSleepPersistentResetStorage();
+```
+
+Open the file "gecko_sdk_4.3.2/protocol/z-wave/ZAF/CommandClasses/MultilevelSensor/src/CC_MultilevelSensor_Support.c"
+
+Replace "AppTimerDeepSleepPersistentRegister" with "AppTimerRegister".
+
+Replace "AppTimerDeepSleepPersistentStart" with "TimerStart".
+
+Open the file "gecko_sdk_4.3.2/protocol/z-wave/platform/SiliconLabs/AppsHw/src/MultilevelSensor/MultilevelSensor_hw.c".
+
+Remove this include file reference:
+
+```
+#include <CC_Battery.h>
+```
+
+Locate and remove this function:
+
+```
+uint8_t
+CC_Battery_BatteryGet_handler(uint8_t endpoint)
+{
+  uint32_t VBattery;
+  uint8_t  accurateLevel;
+  uint8_t  roundedLevel;
+  uint8_t reporting_decrements;
+
+  UNUSED(endpoint);
+
+  /*
+   * Simple example how to use the ADC to measure the battery voltage
+   * and convert to a percentage battery level on a linear scale.
+   */
+  ADC_Enable();
+  VBattery = ADC_Measure_VSupply();
+  DPRINTF("\r\nBattery voltage: %dmV", VBattery);
+  ADC_Disable();
+
+  if (MY_BATTERY_SPEC_LEVEL_FULL <= VBattery)
+  {
+    // Level is full
+    return (uint8_t)CMD_CLASS_BATTERY_LEVEL_FULL;
+  }
+  else if (MY_BATTERY_SPEC_LEVEL_EMPTY > VBattery)
+  {
+    // Level is empty (<0%)
+    return (uint8_t)CMD_CLASS_BATTERY_LEVEL_WARNING;
+  }
+  else
+  {
+    reporting_decrements = cc_battery_config_get_reporting_decrements();
+    // Calculate the percentage level from 0 to 100
+    accurateLevel = (uint8_t)((100 * (VBattery - MY_BATTERY_SPEC_LEVEL_EMPTY)) / (MY_BATTERY_SPEC_LEVEL_FULL - MY_BATTERY_SPEC_LEVEL_EMPTY));
+
+    // And round off to the nearest "reporting_decrements" level
+    roundedLevel = (accurateLevel / reporting_decrements) * reporting_decrements; // Rounded down
+    if ((accurateLevel % reporting_decrements) >= (reporting_decrements / 2))
+    {
+      roundedLevel += reporting_decrements; // Round up
+    }
+  }
+  return roundedLevel;
+}
+```
+
+
+
+
+
+
+
+
+
+
+
 
 
 
