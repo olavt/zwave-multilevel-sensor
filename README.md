@@ -3,7 +3,7 @@
 
 ## Introduction
 
-This article shows how to extend the "Z-Wave - SoC Multilevel Sensor" example project with functional configuration parameters and how to add a CO2 sensor connected to the UART terminals of the ZGM230-DK2603A development board.
+This article shows how to extend the "Z-Wave - SoC Multilevel Sensor" example project with functional configuration parameters, add code to use the onboard Bosch Sensortec BMP384 pressure sensor and how to add a CO2 sensor connected to the UART terminals of the ZGM230-DK2603A development board.
 
 This article is based on Silicon Labs Gecko SDK version 4.3.2
 
