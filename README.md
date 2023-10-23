@@ -255,14 +255,14 @@ We are now using all the configuration parameters. You can build the code, deplo
 
 There is a Bosch Sensortec BMP384 pressure sensor present on the ZGM230-DK2603A board, but the sample project does not include any code to use it. We will now add configuration / code to use it.
 
-## Add the "Pressure device driver for BMP3XX"
+### Add the "Pressure device driver for BMP3XX"
 
 Open the .slcp file in your project and select "SOFTWARE COMPONENTS".
 
 Locate "Platform->Board Drivers->Pressure device driver for BMP3XX
 ", select it and click "Install"
 
-## Add configuration for the Bosch Sensortec BMP384 pressure sensor
+### Add configuration for the Bosch Sensortec BMP384 pressure sensor
 
 First we add a sensor with a supported type to the project.
 
@@ -340,7 +340,7 @@ bool cc_multilevel_sensor_barometric_pressure_interface_read_value(sensor_read_r
 }
 ```
 
-## Use correct sensor type for the barometric pressure sensor
+### Use correct sensor type for the barometric pressure sensor
 
 Now we need to use the correct sensor type:
 
@@ -382,7 +382,7 @@ To be able to connect the CO2 sensor to the Z-Wave 800 ZGM230-DK2603A board, I s
 
 Connect TX from the CO2 sensor to RX on the ZGM230-DK2603A board and RX to TX. My CO2 sensor use 5V, so I connect those together and GND. It then looks like the photo on top of this article.
 
-## Add support for UART to the project
+### Add support for UART to the project
 
 Open the .slcp file in your project and select "SOFTWARE COMPONENTS".
 
@@ -402,7 +402,7 @@ Click on the gear icon to the right of "exp":
 
 Make sure the settings are correct for  your CO2 sensor. I changed only the Baud rate to 9600.
 
-## Add configuration for the CO2 sensor to the project
+### Add configuration for the CO2 sensor to the project
 
 Due to some unknown reason, Silicon Labs only supports a subset of sensor types in the SDK (ZAF). It's therefore not straight forward to add support for the CO2 sensor.
 
@@ -578,7 +578,7 @@ bool cc_multilevel_sensor_co2_interface_read_value(sensor_read_result_t* o_resul
 
 Note! The code above is for a Winsen MH-Z14A NDIR CO2 Module and needs to be changed if you use another CO2-sensor.
 
-## Use correct sensor type for the CO2-sensor
+### Use correct sensor type for the CO2-sensor
 
 Now we need to use the correct sensor type:
 
