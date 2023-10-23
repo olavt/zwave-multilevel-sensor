@@ -364,6 +364,8 @@ This is the auto-generated code for our CO2 sensor (using the supported type Pow
 
   This code needs to be changed to:
 ```
+  static const sensor_type_t barometric_pressure_sensor_type = {.value = 0x09, .byte_offset = 2, .bit_mask = 0, .max_scale_value = 0x00};
+
   memset(&cc_multilevel_sensor_barometric_pressure, 0, sizeof(cc_multilevel_sensor_barometric_pressure));
   cc_multilevel_sensor_barometric_pressure.sensor_type = &barometric_pressure_sensor_type;
   cc_multilevel_sensor_add_supported_scale_interface(&cc_multilevel_sensor_barometric_pressure, 0x00); // 0x00 = "Kilopascal (kPa)"
