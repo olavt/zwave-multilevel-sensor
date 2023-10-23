@@ -70,7 +70,7 @@ Note! Editing and saving this file will trigger an automatic generation of some 
 
 Now we need to add some supporting functions to get the configuration parameters during run-time.
 
-Create a C header file in the project root named configuration_parameters.h
+Create a C header file in the project root named "configuration_parameters.h"
 
 Add the following code:
 
@@ -120,7 +120,7 @@ int32_t get_minimum_temperature_limit()
 
 int32_t get_maximum_temperature_limit()
 {
-  int32_t maximum_temperature_limit = -30;
+  int32_t maximum_temperature_limit = 100;
   cc_config_parameter_buffer_t parameter_buffer;
   bool success = cc_configuration_get(MAXIMUM_TEMPERATURE_LIMIT, &parameter_buffer);
   if (success)
@@ -251,6 +251,131 @@ Then add the following lines of code just after the statement you just moved:
 
 We are now using all the configuration parameters. You can build the code, deploy it to the development board and test it.
 
+## Add support for the Bosch Sensortec BMP384 pressure sensor
+
+There is a Bosch Sensortec BMP384 pressure sensor present on the ZGM230-DK2603A board, but the sample project does not include any code to use it. We will now add configuration / code to use it.
+
+## Add the "Pressure device driver for BMP3XX"
+
+Open the .slcp file in your project and select "SOFTWARE COMPONENTS".
+
+Locate "Platform->Board Drivers->Pressure device driver for BMP3XX
+", select it and click "Install"
+
+## Add configuration for the Bosch Sensortec BMP384 pressure sensor
+
+First we add a sensor with a supported type to the project.
+
+Open the file "config/cc_config/MultilevelSensor.cc_config".
+
+Add the following yaml to the end of the sensors section:
+
+```
+
+    barometric_pressure:
+      name: SENSOR_NAME_POWER
+      scales:
+        - SENSOR_SCALE_WATT
+```
+This will cause these files to be auto-generated:
+- autogen/cc_multilevel_sensor_config.h
+- autogen/cc_multilevel_sensor_config.c
+
+Now we need to do some tricks to workouround the lack of support for the barometric pressure sensor.
+
+Copy the two generated files to the root of the project. Then delete all the yaml definitions for all the sensors from "config/cc_config/MultilevelSensor.cc_config". This should cause the two auto-generated files to disappear.
+
+Now implement the code to read the barometric pressure values.
+
+Add the following C source file to the root of the project "multilevel_sensor_barometric_pressure_interface.c"
+
+Add this code to the file:
+
+```
+// -----------------------------------------------------------------------------
+//                   Includes
+// -----------------------------------------------------------------------------
+#include <cc_multilevel_sensor_config.h>
+#include "sl_i2cspm_instances.h"
+#include "sl_bmp3xx.h"
+#include <math.h>
+#include <string.h>
+#include <ZW_typedefs.h>
+
+bool cc_multilevel_sensor_barometric_pressure_interface_read_value(sensor_read_result_t* o_result, uint8_t i_scale)
+{
+  UNUSED(o_result);
+  UNUSED(i_scale);
+
+  if(o_result == NULL)
+    return true;
+
+  float pressure;
+  int8_t result;
+
+  memset(o_result, 0, sizeof(sensor_read_result_t));
+  o_result->precision  = SENSOR_READ_RESULT_PRECISION_3;
+  o_result->size_bytes = SENSOR_READ_RESULT_SIZE_4;
+
+  result = sl_bmp3xx_init(sl_i2cspm_sensor);
+
+  if (result != SL_STATUS_OK) {
+    return false;
+  }
+
+  result = sl_bmp3xx_measure_pressure(sl_i2cspm_sensor, &pressure);
+
+  if (result != SL_STATUS_OK) {
+    return false;
+  }
+
+  int32_t pressure_result = roundf(pressure);
+
+  o_result->raw_result[3] = (uint8_t)(pressure_result & 0xFF);
+  o_result->raw_result[2] = (uint8_t)((pressure_result >> 8 ) & 0xFF);
+  o_result->raw_result[1] = (uint8_t)((pressure_result >> 16) & 0xFF);
+  o_result->raw_result[0] = (uint8_t)((pressure_result >> 24) & 0xFF);
+
+  return true;
+}
+```
+
+## Use correct sensor type for the barometric pressure sensor
+
+Now we need to use the correct sensor type:
+
+Open the file "cc_multilevel_sensor_config.c" that we copied to the root of the project:
+
+Add the following line to the includes file section:
+
+```
+#include <string.h>
+```
+
+This is the auto-generated code for our CO2 sensor (using the supported type Power):
+```
+  cc_multilevel_sensor_init_interface(&cc_multilevel_sensor_barometric_pressure, SENSOR_NAME_POWER);
+  cc_multilevel_sensor_add_supported_scale_interface(&cc_multilevel_sensor_barometric_pressure, SENSOR_SCALE_WATT);
+  cc_multilevel_sensor_barometric_pressure.init = cc_multilevel_sensor_barometric_pressure_interface_init;
+  cc_multilevel_sensor_barometric_pressure.deinit = cc_multilevel_sensor_barometric_pressure_interface_deinit;
+  cc_multilevel_sensor_barometric_pressure.read_value = cc_multilevel_sensor_barometric_pressure_interface_read_value;
+  cc_multilevel_sensor_registration(&cc_multilevel_sensor_barometric_pressure);
+  ```
+
+  This code needs to be changed to:
+```
+  memset(&cc_multilevel_sensor_barometric_pressure, 0, sizeof(cc_multilevel_sensor_barometric_pressure));
+  cc_multilevel_sensor_barometric_pressure.sensor_type = &barometric_pressure_sensor_type;
+  cc_multilevel_sensor_add_supported_scale_interface(&cc_multilevel_sensor_barometric_pressure, 0x00); // 0x00 = "Kilopascal (kPa)"
+  cc_multilevel_sensor_barometric_pressure.init = cc_multilevel_sensor_barometric_pressure_interface_init;
+  cc_multilevel_sensor_barometric_pressure.deinit = cc_multilevel_sensor_barometric_pressure_interface_deinit;
+  cc_multilevel_sensor_barometric_pressure.read_value = cc_multilevel_sensor_barometric_pressure_interface_read_value;
+  cc_multilevel_sensor_registration(&cc_multilevel_sensor_barometric_pressure);
+  ```
+
+  You should now be able to build the project, deploy to your hardware and test!
+
+
 ## Add support for a CO2 sensor using UART (serial communication)
 
 To be able to connect the CO2 sensor to the Z-Wave 800 ZGM230-DK2603A board, I soldered two 10-pin headers to the EXP headers on the board.
@@ -277,7 +402,7 @@ Click on the gear icon to the right of "exp":
 
 Make sure the settings are correct for  your CO2 sensor. I changed only the Baud rate to 9600.
 
-## Add support for the CO2 sensor to the project
+## Add configuration for the CO2 sensor to the project
 
 Due to some unknown reason, Silicon Labs only supports a subset of sensor types in the SDK (ZAF). It's therefore not straight forward to add support for the CO2 sensor.
 
@@ -652,6 +777,8 @@ CC_Battery_BatteryGet_handler(uint8_t endpoint)
   return roundedLevel;
 }
 ```
+
+You should now be able to build the project, deploy to your hardware and test!
 
 
 
