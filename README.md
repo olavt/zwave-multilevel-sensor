@@ -259,8 +259,7 @@ There is a Bosch Sensortec BMP384 pressure sensor present on the ZGM230-DK2603A 
 
 Open the .slcp file in your project and select "SOFTWARE COMPONENTS".
 
-Locate "Platform->Board Drivers->Pressure device driver for BMP3XX
-", select it and click "Install"
+Locate "Platform->Board Drivers->Pressure device driver for BMP3XX", select it and click "Install"
 
 ### Add configuration for the Bosch Sensortec BMP384 pressure sensor
 
