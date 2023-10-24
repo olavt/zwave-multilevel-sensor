@@ -323,7 +323,14 @@ bool cc_multilevel_sensor_barometric_pressure_interface_read_value(sensor_read_r
     return false;
   }
 
+  // Returns pressure in Kilopascal (kPa)
   result = sl_bmp3xx_measure_pressure(sl_i2cspm_sensor, &pressure);
+
+  if (i_scale == 0x01)
+  {
+    // Convert to Inches of Mercury, https://www.weather.gov/media/epz/wxcalc/pressureConversion.pdf
+    pressure = 0.295300 * pressure;
+  }
 
   if (result != SL_STATUS_OK) {
     return false;
@@ -432,7 +439,7 @@ Copy the two generated files to the root of the project. Then delete all the yam
 
 Now implement the code to read the CO2-sensor values.
 
-Add the following C source file to the root of the project "co2_sensor_interface.c"
+Add the following C source file to the root of the project "multilevel_sensor_co2_interface.c"
 
 Add this code to the file:
 
@@ -574,8 +581,6 @@ bool cc_multilevel_sensor_co2_interface_read_value(sensor_read_result_t* o_resul
 
   return true;
 }
-
-
 ```
 
 Note! The code above is for a Winsen MH-Z14A NDIR CO2 Module and needs to be changed if you use another CO2-sensor.
@@ -604,10 +609,10 @@ This is the auto-generated code for our CO2 sensor (using the supported type Pow
 
   This code needs to be changed to:
 ```
-  static const sensor_type_t co2_sensorType = {.value = 0x11, .byte_offset = 3, .bit_mask = 0, .max_scale_value = 0x00};
+  static const sensor_type_t co2_sensor_type = {.value = 0x11, .byte_offset = 3, .bit_mask = 0, .max_scale_value = 0x00};
 
   memset(&cc_multilevel_sensor_co2, 0, sizeof(cc_multilevel_sensor_co2));
-  cc_multilevel_sensor_co2.sensor_type = &co2_sensorType;
+  cc_multilevel_sensor_co2.sensor_type = &co2_sensor_type;
   cc_multilevel_sensor_add_supported_scale_interface(&cc_multilevel_sensor_co2, 0x00); // 0x00 = "Parts/million (ppm)"
   cc_multilevel_sensor_co2.init = cc_multilevel_sensor_co2_interface_init;
   cc_multilevel_sensor_co2.deinit = cc_multilevel_sensor_co2_interface_deinit;
