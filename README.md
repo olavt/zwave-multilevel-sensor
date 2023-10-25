@@ -62,6 +62,18 @@ Add the following yaml code after the last definition of configuration parameter
       altering_capabilities: 0
       read_only: 0
       advanced: 0
+    - name: "Enable CO2 Automatic Baseline Correction"
+      number: 5
+      file_id: 4
+      info: "Enable CO2 Automatic Baseline Correction."
+      size: CC_CONFIG_PARAMETER_SIZE_8_BIT
+      format: CC_CONFIG_PARAMETER_FORMAT_UNSIGNED_INTEGER
+      min_value: 0
+      max_value: 1
+      default_value: 1
+      altering_capabilities: 0
+      read_only: 0
+      advanced: 0
 ```
 
 Note! Editing and saving this file will trigger an automatic generation of some source files based on the information added in the yaml file.
@@ -78,13 +90,15 @@ Add the following code:
 #ifndef CONFIGURATION_PARAMETERS_H_
 #define CONFIGURATION_PARAMETERS_H_
 
-int32_t get_minimum_temperature_limit();
+int32_t get_minimum_temperature_limit_parameter();
 
-int32_t get_maximum_temperature_limit();
+int32_t get_maximum_temperature_limit_parameter();
 
-uint32_t get_sensor_report_interval_ms();
+uint32_t get_sensor_report_interval_ms_parameter();
 
-int16_t get_temperature_sensor_calibration();
+int16_t get_temperature_sensor_calibration_parameter();
+
+int8_t get_enable_co2_automatic_baseline_correction_parameter();
 
 #endif /* CONFIGURATION_PARAMETERS_H_ */
 ```
@@ -104,8 +118,9 @@ Add the following code:
 #define MAXIMUM_TEMPERATURE_LIMIT 2
 #define REPORT_INTERVAL_SECONDS 3
 #define TEMPERATURE_SENSOR_CALIBRATION 4
+#define CO2_AUTOMATIC_BASELINE_CORRECTION 5
 
-int32_t get_minimum_temperature_limit()
+int32_t get_minimum_temperature_limit_parameter()
 {
   int32_t minimum_temperature_limit = -30;
   cc_config_parameter_buffer_t parameter_buffer;
@@ -118,9 +133,9 @@ int32_t get_minimum_temperature_limit()
   return minimum_temperature_limit;
 }
 
-int32_t get_maximum_temperature_limit()
+int32_t get_maximum_temperature_limit_parameter()
 {
-  int32_t maximum_temperature_limit = 100;
+  int32_t maximum_temperature_limit = -30;
   cc_config_parameter_buffer_t parameter_buffer;
   bool success = cc_configuration_get(MAXIMUM_TEMPERATURE_LIMIT, &parameter_buffer);
   if (success)
@@ -131,7 +146,7 @@ int32_t get_maximum_temperature_limit()
   return maximum_temperature_limit;
 }
 
-uint32_t get_sensor_report_interval_ms()
+uint32_t get_sensor_report_interval_ms_parameter()
 {
   uint16_t report_interval_seconds = 120;
   cc_config_parameter_buffer_t parameter_buffer;
@@ -146,7 +161,7 @@ uint32_t get_sensor_report_interval_ms()
   return report_interval_ms;
 }
 
-int16_t get_temperature_sensor_calibration()
+int16_t get_temperature_sensor_calibration_parameter()
 {
   int16_t temperature_sensor_calibration = 0;
   cc_config_parameter_buffer_t parameter_buffer;
@@ -159,6 +174,18 @@ int16_t get_temperature_sensor_calibration()
   return temperature_sensor_calibration;
 }
 
+int8_t get_enable_co2_automatic_baseline_correction_parameter()
+{
+  int8_t co2_automatic_baseline_correction = 1;
+  cc_config_parameter_buffer_t parameter_buffer;
+  bool success = cc_configuration_get(CO2_AUTOMATIC_BASELINE_CORRECTION, &parameter_buffer);
+  if (success)
+  {
+      co2_automatic_baseline_correction = parameter_buffer.data_buffer.as_int8;
+  }
+
+  return co2_automatic_baseline_correction;
+}
 ```
 
 ## Add code to use configuration parameters at run-time
@@ -188,7 +215,7 @@ Replace this line:
 with:
 
 ```
-  uint32_t report_interval_ms = get_sensor_report_interval_ms();
+  uint32_t report_interval_ms = get_sensor_report_interval_ms_parameter();
   AppTimerDeepSleepPersistentStart(&cc_multilevel_sensor_autoreport_timer, report_interval_ms);
 ```
 
@@ -203,7 +230,7 @@ Replace this line:
 with:
 
 ```
-  uint32_t report_interval_ms = get_sensor_report_interval_ms();
+  uint32_t report_interval_ms = get_sensor_report_interval_ms_parameter();
   AppTimerDeepSleepPersistentStart(&cc_multilevel_sensor_autoreport_timer, report_interval_ms);
 ```
 
@@ -227,7 +254,7 @@ Find this line of code:
 
 add the following code right after:
 ```
-    int16_t temperature_sensor_calibration = get_temperature_sensor_calibration();
+    int16_t temperature_sensor_calibration = get_temperature_sensor_calibration_parameter();
 
     // Adjust for calibration offset, 10 = 1.0 degrees Celsius
     temp_data += (temperature_sensor_calibration * 100);
@@ -242,8 +269,8 @@ Move this line of code located inside the if-statement just above the if-stateme
 Then add the following lines of code just after the statement you just moved:
 
 ```
-    int32_t minimum_temperature_limit = get_minimum_temperature_limit();
-    int32_t maximum_temperature_limit = get_maximum_temperature_limit();
+    int32_t minimum_temperature_limit = get_minimum_temperature_limit_parameter();
+    int32_t maximum_temperature_limit = get_maximum_temperature_limit_parameter();
 
     if ((temperature_celsius_divided < minimum_temperature_limit) || (temperature_celsius_divided > maximum_temperature_limit))
       return false; // Discard reading
@@ -443,6 +470,12 @@ Add the following C source file to the root of the project "multilevel_sensor_co
 Add this code to the file:
 
 ```
+/*
+ * multilevel_sensor_co2_interface.c
+ *
+ *  Created on: Oct 24, 2023
+ *      Author: olavt
+ */
 // -----------------------------------------------------------------------------
 //                   Includes
 // -----------------------------------------------------------------------------
@@ -461,6 +494,7 @@ Add this code to the file:
 #include "sl_iostream_uart.h"
 #include "sl_iostream_init_instances.h"
 #include "sl_iostream_handles.h"
+#include "configuration_parameters.h"
 
 #ifndef BUFSIZE
 #define BUFSIZE    80
@@ -468,6 +502,33 @@ Add this code to the file:
 
 static char buffer[BUFSIZE];
 static sl_iostream_t* sensor_stream;
+static bool abc_enabled = false;
+
+bool enable_abc()
+{
+  return (get_enable_co2_automatic_baseline_correction_parameter() == 1);
+}
+
+char calculate_checksum(char *buffer, int length)
+{
+  char checksum = 0;
+  for(int i = 1; i < length - 1; i++)
+  {
+    checksum += buffer[i];
+  }
+  checksum = 0xff - checksum;
+  checksum += 1;
+
+  return checksum;
+}
+
+bool checksum_ok(char *buffer, int length)
+{
+  char calculated_checksum = calculate_checksum(buffer, length);
+  char checksum = buffer[length - 1];
+
+  return (calculated_checksum == checksum);
+}
 
 // Automatic Baseline Correction (ABC function)
 // ABC function refers to that sensor itself do zero point judgment and automatic calibration
@@ -492,14 +553,56 @@ bool enable_automatic_baseline_correction(sl_iostream_t* sensor_stream)
   if (status != SL_STATUS_OK)
     return false;
 
+  // Check expected response length
   if (bytes_read != 9)
     return false;
+
+  // Check the checksum
+  if (!checksum_ok(buffer, bytes_read))
+    return false;
+
+  abc_enabled = true;
+
+  return true;
+}
+
+bool disable_automatic_baseline_correction(sl_iostream_t* sensor_stream)
+{
+  const char disableABCCommand[] = { 0xFF, 0x01, 0x79, 0x00, 0x00, 0x00, 0x00, 0x00, 0x86 };
+  sl_status_t status;
+  size_t bytes_read;
+
+  status = sl_iostream_write(sensor_stream, disableABCCommand, sizeof(disableABCCommand));
+  if (status != SL_STATUS_OK)
+    return false;
+
+  // Wait a bit to allow sensor to respond before reading response
+  vTaskDelay(pdMS_TO_TICKS(200));
+
+  status = sl_iostream_read(sensor_stream, &buffer, sizeof(buffer), &bytes_read);
+  if (status != SL_STATUS_OK)
+    return false;
+
+  // Check expected response length
+  if (bytes_read != 9)
+    return false;
+
+  // Check the checksum
+  if (!checksum_ok(buffer, bytes_read))
+    return false;
+
+  abc_enabled = false;
 
   return true;
 }
 
 bool get_co2_concentration_reading(sl_iostream_t* sensor_stream, int32_t *co2_ppm)
 {
+  if (enable_abc() && !abc_enabled)
+    enable_automatic_baseline_correction(sensor_stream);
+  else if (!enable_abc() && abc_enabled)
+    disable_automatic_baseline_correction(sensor_stream);
+
   const char getCO2ConcentrationCommand[] = { 0xff, 0x01, 0x86, 0x00, 0x00, 0x00, 0x00, 0x00, 0x79 };
   sl_status_t status;
   size_t bytes_read;
@@ -515,7 +618,12 @@ bool get_co2_concentration_reading(sl_iostream_t* sensor_stream, int32_t *co2_pp
   if (status != SL_STATUS_OK)
     return false;
 
+  // Check expected response length
   if (bytes_read != 9)
+    return false;
+
+  // Check the checksum
+  if (!checksum_ok(buffer, bytes_read))
     return false;
 
   *co2_ppm = (int32_t)((buffer[2] << 8) | buffer[3]);
@@ -547,7 +655,10 @@ bool cc_multilevel_sensor_co2_interface_init(void)
 
   clear_input_buffer(sensor_stream);
 
-  enable_automatic_baseline_correction(sensor_stream);
+  if (enable_abc())
+    enable_automatic_baseline_correction(sensor_stream);
+  else
+    disable_automatic_baseline_correction(sensor_stream);
 
   return true;
 }
