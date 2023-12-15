@@ -5,7 +5,7 @@
 
 This article shows how to extend the "Z-Wave - SoC Multilevel Sensor" example project with functional configuration parameters, add code to use the onboard Bosch Sensortec BMP384 pressure sensor and how to add a CO2 sensor connected to the UART terminals of the ZGM230-DK2603A development board.
 
-This article is based on Silicon Labs Gecko SDK version 4.3.2
+This article is based on Silicon Labs Gecko SDK version 4.4.0
 
 ### What you will need
 
@@ -14,7 +14,7 @@ This article is based on Silicon Labs Gecko SDK version 4.3.2
 - Silicon Labs ZGM230-DK2603A Development Kit.
 - CO2 sensor with serial port (UART) connection. I'm using a Winsen MH-Z14A.
 
-This article assumes that you have already installed Simplicity Studio V5 and the Gecko SDK 4.3.2
+This article assumes that you have already installed Simplicity Studio V5 and the Gecko SDK 4.4.0
 
 ![Z-Wave Hardware](./images/sensor_hardware.jpg)
 
@@ -103,7 +103,7 @@ int8_t get_enable_co2_automatic_baseline_correction_parameter();
 #endif /* CONFIGURATION_PARAMETERS_H_ */
 ```
 
-Create a C source file in the project root named configuration_parameters.c
+Create a C source file in the project root named "configuration_parameters.c"
 
 Add the following code:
 
@@ -307,8 +307,6 @@ This will cause these files to be auto-generated:
 - autogen/cc_multilevel_sensor_config.h
 - autogen/cc_multilevel_sensor_config.c
 
-Now we need to do some tricks to workouround the lack of support for the barometric pressure sensor.
-
 Copy the two generated files to the root of the project. Then delete all the yaml definitions for all the sensors from "config/cc_config/MultilevelSensor.cc_config". This should cause the two auto-generated files to disappear.
 
 Now implement the code to read the barometric pressure values.
@@ -375,7 +373,7 @@ bool cc_multilevel_sensor_barometric_pressure_interface_read_value(sensor_read_r
 
 ### Use correct sensor type for the barometric pressure sensor
 
-Now we need to use the correct sensor type:
+Now we need to do some tricks to workouround the lack of support for the barometric pressure sensor in the Gecko SDK. 
 
 Open the file "cc_multilevel_sensor_config.c" that we copied to the root of the project:
 
@@ -495,6 +493,10 @@ Add this code to the file:
 #include "sl_iostream_init_instances.h"
 #include "sl_iostream_handles.h"
 #include "configuration_parameters.h"
+
+#ifndef UNUSED
+#define UNUSED(x) (void)(x)
+#endif
 
 #ifndef BUFSIZE
 #define BUFSIZE    80
