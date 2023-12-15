@@ -336,7 +336,8 @@ Add this code to the file:
 #include <string.h>
 #include <ZW_typedefs.h>
 
-bool cc_multilevel_sensor_barometric_pressure_interface_read_value(sensor_read_result_t* o_result, uint8_t i_scale)
+bool cc_multilevel_sensor_barometric_pressure_interface_read_value(
+    sensor_read_result_t* o_result, __attribute__((unused))uint8_t i_scale)
 {
   UNUSED(o_result);
   UNUSED(i_scale);
@@ -503,10 +504,6 @@ Add this code to the file:
 #include "sl_iostream_init_instances.h"
 #include "sl_iostream_handles.h"
 #include "configuration_parameters.h"
-
-#ifndef UNUSED
-#define UNUSED(x) (void)(x)
-#endif
 
 #ifndef BUFSIZE
 #define BUFSIZE    80
@@ -675,10 +672,10 @@ bool cc_multilevel_sensor_co2_interface_init(void)
   return true;
 }
 
-bool cc_multilevel_sensor_co2_interface_read_value(sensor_read_result_t* o_result, uint8_t i_scale)
+bool cc_multilevel_sensor_co2_interface_read_value(
+  sensor_read_result_t* o_result, __attribute__((unused))uint8_t i_scale)
 {
   int32_t co2_ppm;
-  UNUSED(i_scale);
 
   if(o_result != NULL)
   {
