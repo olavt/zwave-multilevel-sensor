@@ -288,6 +288,16 @@ Open the .slcp file in your project and select "SOFTWARE COMPONENTS".
 
 Locate "Platform->Board Drivers->Pressure device driver for BMP3XX", select it and click "Install"
 
+### Enable the Bosch Sensortec BMP384 pressure sensor
+
+Open the .slcp file in your project and select "SOFTWARE COMPONENTS".
+
+Open "Platform->Board->Board Control" and click on "Configure".
+
+Make sure that the sensors you want to use are enabled.
+
+![Enable Board Sensors](./images/enable-board-sensors.png)
+
 ### Add configuration for the Bosch Sensortec BMP384 pressure sensor
 
 First we add a sensor with a supported type to the project.
